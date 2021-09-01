@@ -1,4 +1,4 @@
-# Fuzzy-Simple-Linear-Iterative-Clustering
+# Fuzzy Simple Linear Iterative Clustering (FSLIC)
 Color-based superpixel algorithm for image segmentation.
 <p float="left">
   <img src="/horses.jpg" width="200" />
