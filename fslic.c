@@ -527,7 +527,6 @@ double* fslic(PyObject* arg, int w, int h, int depth, int m, double compactness,
         }
 
         // Update advanced membership matrix U_
-
         for(int y=0; y<h; ++y){
             for(int x=0; x<w; ++x){
 
