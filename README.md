@@ -1,5 +1,5 @@
 # Fuzzy-Simple-Linear-Iterative-Clustering
-Color-based superpixel algorithm.
+Color-based superpixel algorithm for image segmentation.
 <p float="left">
   <img src="/horses.jpg" width="200" />
   <img src="/fslic.jpg" width="200" /> 
