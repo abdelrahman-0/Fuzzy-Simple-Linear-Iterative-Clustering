@@ -247,118 +247,7 @@ double** initialize_centers(double*** img, int w, int h, int depth, int* num_clu
     return centers;
 }
 
-void enforce_connectivity(int** labels, int w, int h, int* cluster_sizes, int num_clusters, int size_threshold){
-    int avg_superpixel_size = h*w/num_clusters;
-    int** visited = create2darray( h, w, 0);
-    int* neighbours = malloc(num_clusters * sizeof(int));
-    int** queue = create2darray(avg_superpixel_size * 10, 2, 0);
-    int num_neighbours, first, last, region_size, largest_neighbour, largest_neighbour_size;
-    for(int y=0; y<h; ++y){
-            for(int x=0; x<w; ++x){
-                if(!visited[y][x]){
-                    num_neighbours = 0;
-                    first = 0;
-                    last = 1;
-                    region_size = 1;
-                    queue[0][0] = x;
-                    queue[0][1] = y;
-                    int current_label = labels[y][x];
-                    while(first != last){
-                        int popped_x = queue[first][0];
-                        int popped_y = queue[first][1];
-                        first++;
-
-                        // Check left pixel		
-                        if(VALID(popped_x - 1, popped_y, w, h)){
-                            if(current_label==labels[popped_y][popped_x - 1] && !visited[popped_y][popped_x - 1]){
-                                visited[popped_y][popped_x - 1] = 1;
-                                queue[last][0] = popped_x - 1;
-                                queue[last][1] = popped_y;
-                                last++;
-                                region_size++;
-                            }else{
-                                int neighbour_label = labels[popped_y][popped_x - 1];
-                                if(!contains(neighbours, neighbour_label, num_neighbours)){
-                                    neighbours[num_neighbours] = neighbour_label;
-                                    num_neighbours++;
-                                }
-                            }
-                        }
-
-                        // Check right pixel				
-                        if(VALID(popped_x + 1, popped_y, w, h)){
-                            if(current_label==labels[popped_y][popped_x + 1] && !visited[popped_y][popped_x + 1]){
-                                visited[popped_y][popped_x + 1] = 1;
-                                queue[last][0] = popped_x + 1;
-                                queue[last][1] = popped_y;
-                                last++;
-                                region_size++;
-                            }else{
-                                int neighbour_label = labels[popped_y][popped_x + 1];
-                                if(!contains(neighbours, neighbour_label, num_neighbours)){
-                                    neighbours[num_neighbours] = neighbour_label;
-                                    num_neighbours++;
-                                }
-                            }
-                        }
-
-                        // Check above pixel
-                        if(VALID(popped_x, popped_y - 1, w, h)){
-                            if(current_label==labels[popped_y - 1][popped_x] && !visited[popped_y - 1][popped_x]){
-                                visited[popped_y - 1][popped_x] = 1;
-                                queue[last][0] = popped_x;
-                                queue[last][1] = popped_y - 1;
-                                last++;
-                                region_size++;
-                            }else{
-                                int neighbour_label = labels[popped_y - 1][popped_x];
-                                if(!contains(neighbours, neighbour_label, num_neighbours)){
-                                    neighbours[num_neighbours] = neighbour_label;
-                                    num_neighbours++;
-                                }
-                            }
-                        }
-
-                        // Check below pixel				
-                        if(VALID(popped_x, popped_y + 1, w, h)){
-                            if(current_label==labels[popped_y + 1][popped_x] && !visited[popped_y + 1][popped_x]){
-                                visited[popped_y + 1][popped_x] = 1;
-                                queue[last][0] = popped_x;
-                                queue[last][1] = popped_y + 1;
-                                last++;
-                                region_size++;
-                            }else{
-                                int neighbour_label = labels[popped_y + 1][popped_x];
-                                if(!contains(neighbours, neighbour_label, num_neighbours)){
-                                    neighbours[num_neighbours] = neighbour_label;
-                                    num_neighbours++;
-                                }
-                            }
-                        }
-                    }
-
-                    if(region_size < avg_superpixel_size/size_threshold){
-                        largest_neighbour = -1;
-                        largest_neighbour_size = INT_MIN;
-                        for(int i=0; i<num_neighbours; ++i){
-                            if(cluster_sizes[neighbours[i]] > largest_neighbour_size){
-                                largest_neighbour = i;
-                                largest_neighbour_size = cluster_sizes[neighbours[i]];
-                            }
-                        }
-                        for(int i=0; i<last; ++i){
-                            visited[queue[i][1]][queue[i][0]] = 0;
-                            labels[queue[i][1]][queue[i][0]] = neighbours[largest_neighbour];
-                            cluster_sizes[neighbours[largest_neighbour]] += region_size;
-                            cluster_sizes[labels[y][x]] -= region_size;
-                        }
-                    }
-                }
-            }
-    }
-}
-
-void enforce_connectivity2(int** labels, double** centers, int w, int h, int num_clusters){
+void enforce_connectivity(int** labels, double** centers, int w, int h, int num_clusters){
     int avg_superpixel_size = h*w/num_clusters;
     int** queue = create2darray(avg_superpixel_size * 10, 2, 0);
     int** mini_queue = create2darray(avg_superpixel_size * 5, 2, 0);
@@ -467,7 +356,7 @@ void enforce_connectivity2(int** labels, double** centers, int w, int h, int num
 }
 
 // takes in 5 dimensional vectors (x, y, c1, c2, c3) and returns squared distance in color space.
-double distance_slic(double v1[], double v2[], int depth, int grid_size, double spatial_control){
+double distance_slic(double v1[], double v2[], int depth, int grid_size, double compactness){
     double diff0 = v1[0]-v2[0];
     double diff1 = v1[1]-v2[1];
     double distance_space = sqrt((diff0 * diff0) + (diff1 * diff1));
@@ -476,11 +365,11 @@ double distance_slic(double v1[], double v2[], int depth, int grid_size, double 
         distance_feature += (v1[z+2] - v2[z+2]) * (v1[z+2] - v2[z+2]);
     }
     distance_feature = sqrt(distance_feature);
-    double result = distance_feature + (distance_space * spatial_control / grid_size);
+    double result = distance_feature + (distance_space * compactness / grid_size);
     return result;
 }
 
-double* fslic(PyObject* arg, int w, int h, int depth, int m, int size_threshold, double spatial_control, int max_iterations, double p, double q){
+double* fslic(PyObject* arg, int w, int h, int depth, int m, double compactness, int max_iterations, double p, double q){
     double* list = list_to_array(arg);
     double*** img = array_to_3d(list, w , h, depth);
     int num_clusters;
@@ -544,7 +433,7 @@ double* fslic(PyObject* arg, int w, int h, int depth, int m, int size_threshold,
                         c[z+2] = img[y][x][z];
                     }
 
-                    double distance = distance_slic(centers[k], c, depth, grid_size, spatial_control);
+                    double distance = distance_slic(centers[k], c, depth, grid_size, compactness);
 
                     // Check if the pixel has already been visited 3 times in this iterations
                     if(F[y][x] < num_of_possible_clusters){
@@ -714,8 +603,7 @@ double* fslic(PyObject* arg, int w, int h, int depth, int m, int size_threshold,
         }
     }
 
-//     enforce_connectivity(labels, w, h, cluster_sizes, num_clusters, size_threshold);
-//     enforce_connectivity2(labels, centers, w, h, num_clusters);
+    enforce_connectivity(labels, centers, w, h, num_clusters);
 
     double* L_1d = malloc(h * w * depth * sizeof(double));
 
