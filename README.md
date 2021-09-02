@@ -1,8 +1,6 @@
 # Fuzzy Simple Linear Iterative Clustering (FSLIC)
-Color-based superpixel algorithm for image segmentation. This repository contains a C implementation of FSLIC with a Python interface. The implementation supports multi-channel images 
-```math
-n_{\text{channels}} \in \mathbb{N}
-```
+Color-based superpixel algorithm for image segmentation. This repository contains a C implementation of FSLIC with a Python interface. The implementation supports input images with more than 3 channels.
+
 <p float="left">
   <img src="/horses.jpg" width="200" />
   <img src="/fslic.jpg" width="200" /> 
